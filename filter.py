@@ -2,30 +2,33 @@
 import ollama
 import re
 
-def aiFilter(text: str) -> bool:
-    query = f"""The following is a Reddit post or comment. Would it be unethical or inappropriate to reply to this with the phrase "when the imposter is sus!"? Please provide a short explanation of your reasoning.
+def aiFilter(text: str) -> tuple:
+    query = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request yet keep the response short.
+
+                ### Instruction:
+                Would it cause harm or be disrupt a serious subject to reply to this with the phrase "when the imposter is sus!"? Please provide a short explanation of your reasoning. Format your response as follows: first, indicate acceptability with either a "+" (acceptable) or a "-" (unacceptable), followed by a rating or confidence number (e.g., +3 or -2). Then, place a "|" before the explanation.
+
+                ### Input:
                 **Reddit Post/Comment Text:**
-                {text}"""
+                {text}
+
+                ### Response:
+                """
     verdict, failed = ollama.query_ollama(query)  # Make sure to pass the properly formatted query string
     if failed:
-        return False  # Explicitly handle the failure case
+        return False, 0  # Explicitly handle the failure case with a default confidence of 0
     else:
-        # Use regex to look for words of approval in the verdict
-        approval_patterns = [
-            r'\bacceptable\b',
-            r'\bappropriate\b',
-            r'\bok\b',
-            r'\bfine\b',
-            r'\bgood\b',
-            r'\bapprove\b',
-            r'\bpass\b',
-        ]
+        # Use regex to extract the verdict and confidence number
+        pattern = r'([+-]\d+)\s*\|'
+        match = re.search(pattern, verdict)
         
-        for pattern in approval_patterns:
-            if re.search(pattern, verdict, re.IGNORECASE):
-                return True  # Return True when an approval pattern is found
-        manuallyReview(text)  # Optionally call a manual review process
-        return False  # Ensure a return value after manuallyReview
+        if match:
+            confidence = int(match.group(1))
+            is_acceptable = confidence > 0
+            return is_acceptable, confidence  # Return a tuple with the acceptability and confidence number
+        else:
+            manuallyReview(text)  # Optionally call a manual review process
+            return False, 0  # Ensure a return value after manuallyReview with a default confidence of 0
 
 def manuallyReview(text: str):
     # Placeholder function for manual review process
