@@ -2,7 +2,8 @@ import os
 import re
 from dotenv import load_dotenv
 import praw
-import filter  # Ensure filter.py and ollama.py are in the same directory or properly imported
+from langdetect import detect, DetectorFactory
+import filter
 
 # Load environment variables from .env file
 load_dotenv()
@@ -14,6 +15,9 @@ REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT')
 REDDIT_USERNAME = os.getenv('REDDIT_USERNAME')
 REDDIT_PASSWORD = os.getenv('REDDIT_PASSWORD')
 
+# Ensure consistent language detection
+DetectorFactory.seed = 0
+
 def regex_filter(text: str) -> bool:
     """
     Applies regex filters to pre-filter comments before sending them to the LLM.
@@ -24,7 +28,7 @@ def regex_filter(text: str) -> bool:
     # Define regex patterns to look for keywords related to "imposter," "sus," or "Among Us"
     patterns = [
         r'\bimposter\b',  # "imposter" keyword
-        r'\bsus\b',       # "sus" keyword
+        r'\bsus?\b',  # "sus" keyword with possible context
         r'\bamong us\b',  # "Among Us" keyword
         r'\bamogus\b',    # Slang for "Among Us"
     ]
@@ -34,41 +38,52 @@ def regex_filter(text: str) -> bool:
             return True
     return False
 
-def fetch_and_filter_comments(reddit, limit=100):
+def is_english(text: str) -> bool:
+    """
+    Detects if the text is in English.
+    
+    :param text: The comment text to detect.
+    :return: True if the text is in English, False otherwise.
+    """
+    try:
+        return detect(text) == 'en'
+    except:
+        return False
+
+def fetch_and_filter_comments(reddit):
     """
     Fetches comments from all subreddits and filters them based on regex filters and the aiFilter function.
     
     :param reddit: A praw.Reddit instance.
-    :param limit: The number of comments to fetch and filter.
     :return: None
     """
-    comment_count = 0
-    for comment in reddit.subreddit('all').stream.comments(skip_existing=True):
-        
-            
-        comment_text = comment.body
+    try:
+        for comment in reddit.subreddit('all').stream.comments(skip_existing=True):
+            comment_text = comment.body
 
-        if regex_filter(comment_text):
-            if filter.aiFilter(comment_text):
-                print(f"Comment accepted: {comment_text}")
-            else:
-                print(f"Comment rejected: {comment_text}")
-        
-
-        comment_count += 1
+            if is_english(comment_text) and regex_filter(comment_text):
+                if filter.aiFilter(comment_text):
+                    print(f"Comment accepted: {comment_text}")
+                else:
+                    print(f"Comment rejected: {comment_text}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 def main():
-    # Create a Reddit instance
-    reddit = praw.Reddit(
-        client_id=REDDIT_CLIENT_ID,
-        client_secret=REDDIT_CLIENT_SECRET,
-        user_agent=REDDIT_USER_AGENT,
-        username=REDDIT_USERNAME,
-        password=REDDIT_PASSWORD
-    )
-    
-    # Fetch and filter comments from all subreddits
-    fetch_and_filter_comments(reddit, limit=100)
+    try:
+        # Create a Reddit instance
+        reddit = praw.Reddit(
+            client_id=REDDIT_CLIENT_ID,
+            client_secret=REDDIT_CLIENT_SECRET,
+            user_agent=REDDIT_USER_AGENT,
+            username=REDDIT_USERNAME,
+            password=REDDIT_PASSWORD
+        )
+        
+        # Fetch and filter comments from all subreddits
+        fetch_and_filter_comments(reddit)
+    except Exception as e:
+        print(f"Failed to create Reddit instance: {e}")
 
 if __name__ == '__main__':
     main()
