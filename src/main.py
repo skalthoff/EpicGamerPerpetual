@@ -16,6 +16,8 @@ REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT')
 REDDIT_USERNAME = os.getenv('REDDIT_USERNAME')
 REDDIT_PASSWORD = os.getenv('REDDIT_PASSWORD')
 
+print(REDDIT_USERNAME)
+
 # Ensure consistent language detection
 DetectorFactory.seed = 0
 

@@ -1,5 +1,5 @@
 # Use an official Python runtime as the base image
-FROM --platform=$BUILDPLATFORM python:3.12-slim
+FROM python:3.12-slim
 
 # Set the working directory in the container
 WORKDIR /app
@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 80
 
 # Run the script when the container launches
-CMD ["python", "src/your_script_name.py"]
+CMD ["python", "src/main.py"]
